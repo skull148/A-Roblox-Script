@@ -1,0 +1,341 @@
+-- Load Luna UI
+local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/main/source.lua"))()
+
+-- Create Luna UI window
+local Window = Luna:CreateWindow({
+    Name = "Adjuster",  -- Window title
+    Subtitle = "W.I.P",  -- Subtitle
+    LogoID = nil,  -- Optional: Set to an image ID if desired
+    LoadingEnabled = true,  -- Enable loading screen
+    LoadingTitle = "Loading",  -- Title displayed during loading
+    LoadingSubtitle = "by skull",  -- Subtitle added here
+})
+
+-- Create a tab in the window
+local Tab = Window:CreateTab({
+    Name = "Main",
+    Icon = "view_in_ar",
+    ImageSource = "Material",
+    ShowTitle = true,
+})
+
+-- Variables
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local hitboxSizeMultiplier = 2.0 -- Default multiplier for hitbox size
+local resizingEnabled = false
+local walkspeedValue = 16
+local jumpPowerValue = 50
+local gravityValue = 196.2
+local walkspeedEnabled = false
+local jumpPowerEnabled = false
+local gravityEnabled = false
+local flying = false
+local flySpeed = 50
+local espEnabled = false
+
+-- Resize a player's hitbox by modifying their humanoid root part
+local function resizeHitbox(character, multiplier)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        -- Store the original size if it doesn't already exist
+        if not humanoidRootPart:FindFirstChild("OriginalSize") then
+            local originalSizeValue = Instance.new("Vector3Value")
+            originalSizeValue.Name = "OriginalSize"
+            originalSizeValue.Value = humanoidRootPart.Size
+            originalSizeValue.Parent = humanoidRootPart
+        end
+
+        humanoidRootPart.Size = humanoidRootPart.OriginalSize.Value * multiplier
+    end
+end
+
+-- Reset a player's hitbox to its original size
+local function resetHitbox(character)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart and humanoidRootPart:FindFirstChild("OriginalSize") then
+        humanoidRootPart.Size = humanoidRootPart.OriginalSize.Value
+        humanoidRootPart.OriginalSize:Destroy()
+    end
+end
+
+-- Update all players' hitboxes except the local player
+local function updateAllHitboxes()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then  -- Skip the local player
+            local character = player.Character
+            if character then
+                resizeHitbox(character, hitboxSizeMultiplier)
+            end
+        end
+    end
+end
+
+-- Reset all players' hitboxes
+local function resetAllHitboxes()
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        if character then
+            resetHitbox(character)
+        end
+    end
+end
+
+-- Refresh all players' hitboxes
+local function refreshAllHitboxes()
+    resetAllHitboxes() -- Reset hitboxes first
+    if resizingEnabled then
+        updateAllHitboxes() -- Reapply resizing if enabled
+    end
+end
+
+-- Handle player respawns
+local function onCharacterAdded(character)
+    if resizingEnabled then
+        task.wait(1) -- Allow time for character to fully load
+        resizeHitbox(character, hitboxSizeMultiplier)
+    end
+end
+
+-- Setup for existing and new players
+local function setupPlayer(player)
+    player.CharacterAdded:Connect(function(character)
+        onCharacterAdded(character)
+    end)
+
+    -- Resize hitbox if character already exists
+    if player.Character and resizingEnabled then
+        resizeHitbox(player.Character, hitboxSizeMultiplier)
+    end
+end
+
+-- Connect events
+Players.PlayerAdded:Connect(setupPlayer)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayer(player)
+end
+
+-- Function to toggle fly mode
+local function toggleFly(state)
+    flying = state
+    if flying then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.zero
+        bodyVelocity.Parent = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+        game:GetService("UserInputService").InputBegan:Connect(function(input)
+            if flying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                if input.KeyCode == Enum.KeyCode.W then
+                    bodyVelocity.Velocity = LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
+                elseif input.KeyCode == Enum.KeyCode.S then
+                    bodyVelocity.Velocity = -LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
+                elseif input.KeyCode == Enum.KeyCode.Space then
+                    bodyVelocity.Velocity = Vector3.new(0, flySpeed, 0)
+                end
+            end
+        end)
+    else
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            for _, instance in ipairs(LocalPlayer.Character.HumanoidRootPart:GetChildren()) do
+                if instance:IsA("BodyVelocity") then
+                    instance:Destroy()
+                end
+            end
+        end
+    end
+end
+
+-- Function to enable ESP
+local function toggleESP(state)
+    espEnabled = state
+    if espEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local billboardGui = Instance.new("BillboardGui")
+                    billboardGui.Name = "ESP"
+                    billboardGui.Adornee = character:FindFirstChild("HumanoidRootPart")
+                    billboardGui.Size = UDim2.new(4, 0, 1, 0)
+                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+                    billboardGui.AlwaysOnTop = true
+
+                    local textLabel = Instance.new("TextLabel")
+                    textLabel.Size = UDim2.new(1, 0, 1, 0)
+                    textLabel.BackgroundTransparency = 1
+                    textLabel.Text = player.Name
+                    textLabel.TextColor3 = Color3.new(1, 1, 1)
+                    textLabel.TextStrokeTransparency = 0
+                    textLabel.Font = Enum.Font.Arcade -- Thick block outline font
+                    textLabel.TextScaled = true
+                    textLabel.Parent = billboardGui
+
+                    billboardGui.Parent = character:FindFirstChild("HumanoidRootPart")
+                end
+            end
+        end
+    else
+        for _, player in ipairs(Players:GetPlayers()) do
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local esp = character.HumanoidRootPart:FindFirstChild("ESP")
+                if esp then
+                    esp:Destroy()
+                end
+            end
+        end
+    end
+end
+
+-- Function to teleport
+local function teleportTo(playerName)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name == playerName and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character:SetPrimaryPartCFrame(player.Character.HumanoidRootPart.CFrame)
+            break
+        end
+    end
+end
+
+-- GUI elements
+
+-- Hitbox Size Multiplier Slider
+Tab:CreateSlider({
+    Name = "Hitbox Size Multiplier",
+    Range = {1.0, 20.0},  -- Range from 1x to 20x
+    Increment = 0.1,
+    CurrentValue = hitboxSizeMultiplier,
+    Callback = function(Value)
+        hitboxSizeMultiplier = Value
+        if resizingEnabled then
+            updateAllHitboxes()
+        end
+    end,
+})
+
+-- Enable/Disable Hitbox Resizing Toggle
+Tab:CreateToggle({
+    Name = "Enable Hitbox Resizing",
+    CurrentValue = resizingEnabled,
+    Callback = function(State)
+        resizingEnabled = State
+        if resizingEnabled then
+            updateAllHitboxes()
+        else
+            resetAllHitboxes()
+        end
+    end,
+})
+
+-- Walkspeed Slider
+Tab:CreateSlider({
+    Name = "Walkspeed",
+    Range = {0, 1000},  -- Range from 0 to 1000
+    Increment = 1,
+    CurrentValue = walkspeedValue,
+    Callback = function(Value)
+        walkspeedValue = Value
+        if walkspeedEnabled then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = walkspeedValue
+        end
+    end,
+})
+
+-- Toggle Walkspeed On/Off
+Tab:CreateToggle({
+    Name = "Enable Walkspeed",
+    CurrentValue = walkspeedEnabled,
+    Callback = function(State)
+        walkspeedEnabled = State
+        if walkspeedEnabled then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = walkspeedValue
+        else
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16 -- Reset to default WalkSpeed
+        end
+    end,
+})
+
+-- JumpPower Slider
+Tab:CreateSlider({
+    Name = "JumpPower",
+    Range = {0, 500},  -- Range from 0 to 500
+    Increment = 1,
+    CurrentValue = jumpPowerValue,
+    Callback = function(Value)
+        jumpPowerValue = Value
+        if jumpPowerEnabled then
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = jumpPowerValue
+        end
+    end,
+})
+
+-- Toggle JumpPower On/Off
+Tab:CreateToggle({
+    Name = "Enable JumpPower",
+    CurrentValue = jumpPowerEnabled,
+    Callback = function(State)
+        jumpPowerEnabled = State
+        if jumpPowerEnabled then
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = jumpPowerValue
+        else
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50 -- Reset to default JumpPower
+        end
+    end,
+})
+
+-- Gravity Slider
+Tab:CreateSlider({
+    Name = "Gravity",
+    Range = {0, 1000},  -- Range from 0 to 1000
+    Increment = 1,
+    CurrentValue = gravityValue,
+    Callback = function(Value)
+        gravityValue = Value
+        if gravityEnabled then
+            workspace.Gravity = gravityValue
+        end
+    end,
+})
+
+-- Toggle Gravity On/Off
+Tab:CreateToggle({
+    Name = "Enable Gravity",
+    CurrentValue = gravityEnabled,
+    Callback = function(State)
+        gravityEnabled = State
+        if gravityEnabled then
+            workspace.Gravity = gravityValue
+        else
+            workspace.Gravity = 196.2 -- Reset to default Gravity
+        end
+    end,
+})
+
+-- Fly Toggle
+Tab:CreateToggle({
+    Name = "Enable Fly",
+    CurrentValue = flying,
+    Callback = function(State)
+        toggleFly(State)
+    end,
+})
+
+-- Fly Speed Slider
+Tab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {10, 200},
+    Increment = 10,
+    CurrentValue = flySpeed,
+    Callback = function(Value)
+        flySpeed = Value
+    end,
+})
+
+-- ESP Toggle
+Tab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = espEnabled,
+    Callback = function(State)
+        toggle
