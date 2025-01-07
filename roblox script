@@ -11,12 +11,62 @@ local Window = Luna:CreateWindow({
     LoadingSubtitle = "by skull",  -- Subtitle added here
 })
 
--- Create a tab in the window
+-- Create the first tab (Main)
 local Tab = Window:CreateTab({
-    Name = "Main",
+    Name = "Player",
     Icon = "view_in_ar",
     ImageSource = "Material",
     ShowTitle = true,
+})
+
+-- Create the "Coming Soon" tabs
+local Tab2 = Window:CreateTab({
+    Name = "Coming Soon",
+    Icon = "star",
+    ImageSource = "Material",
+    ShowTitle = true,
+})
+
+local Tab3 = Window:CreateTab({
+    Name = "Coming Soon",
+    Icon = "star",
+    ImageSource = "Material",
+    ShowTitle = true,
+})
+
+local Tab4 = Window:CreateTab({
+    Name = "Misc",
+    Icon = "star",
+    ImageSource = "Material",
+    ShowTitle = true,
+})
+
+local Tab5 = Window:CreateTab({
+    Name = "Coming Soon",
+    Icon = "star",
+    ImageSource = "Material",
+    ShowTitle = true,
+})
+
+-- Set up a "Coming Soon" label for each of the new tabs
+Tab2:CreateLabel({
+    Name = "Coming Soon",
+    Text = "Coming Soon",
+})
+
+Tab3:CreateLabel({
+    Name = "Coming Soon",
+    Text = "Coming Soon",
+})
+
+Tab4:CreateLabel({
+    Name = "Coming Soon",
+    Text = "Coming Soon",
+})
+
+Tab5:CreateLabel({
+    Name = "Coming Soon",
+    Text = "Coming Soon",
 })
 
 -- Variables
@@ -32,7 +82,7 @@ local jumpPowerEnabled = false
 local gravityEnabled = false
 local flying = false
 local flySpeed = 50
-local espEnabled = false
+local antiAFKEnabled = false
 
 -- Resize a player's hitbox by modifying their humanoid root part
 local function resizeHitbox(character, multiplier)
@@ -116,91 +166,6 @@ for _, player in ipairs(Players:GetPlayers()) do
     setupPlayer(player)
 end
 
--- Function to toggle fly mode
-local function toggleFly(state)
-    flying = state
-    if flying then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.zero
-        bodyVelocity.Parent = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-
-        game:GetService("UserInputService").InputBegan:Connect(function(input)
-            if flying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                if input.KeyCode == Enum.KeyCode.W then
-                    bodyVelocity.Velocity = LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
-                elseif input.KeyCode == Enum.KeyCode.S then
-                    bodyVelocity.Velocity = -LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
-                elseif input.KeyCode == Enum.KeyCode.Space then
-                    bodyVelocity.Velocity = Vector3.new(0, flySpeed, 0)
-                end
-            end
-        end)
-    else
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            for _, instance in ipairs(LocalPlayer.Character.HumanoidRootPart:GetChildren()) do
-                if instance:IsA("BodyVelocity") then
-                    instance:Destroy()
-                end
-            end
-        end
-    end
-end
-
--- Function to enable ESP
-local function toggleESP(state)
-    espEnabled = state
-    if espEnabled then
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                local character = player.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    local billboardGui = Instance.new("BillboardGui")
-                    billboardGui.Name = "ESP"
-                    billboardGui.Adornee = character:FindFirstChild("HumanoidRootPart")
-                    billboardGui.Size = UDim2.new(4, 0, 1, 0)
-                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-                    billboardGui.AlwaysOnTop = true
-
-                    local textLabel = Instance.new("TextLabel")
-                    textLabel.Size = UDim2.new(1, 0, 1, 0)
-                    textLabel.BackgroundTransparency = 1
-                    textLabel.Text = player.Name
-                    textLabel.TextColor3 = Color3.new(1, 1, 1)
-                    textLabel.TextStrokeTransparency = 0
-                    textLabel.Font = Enum.Font.Arcade -- Thick block outline font
-                    textLabel.TextScaled = true
-                    textLabel.Parent = billboardGui
-
-                    billboardGui.Parent = character:FindFirstChild("HumanoidRootPart")
-                end
-            end
-        end
-    else
-        for _, player in ipairs(Players:GetPlayers()) do
-            local character = player.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                local esp = character.HumanoidRootPart:FindFirstChild("ESP")
-                if esp then
-                    esp:Destroy()
-                end
-            end
-        end
-    end
-end
-
--- Function to teleport
-local function teleportTo(playerName)
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name == playerName and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character:SetPrimaryPartCFrame(player.Character.HumanoidRootPart.CFrame)
-            break
-        end
-    end
-end
-
--- GUI elements
-
 -- Hitbox Size Multiplier Slider
 Tab:CreateSlider({
     Name = "Hitbox Size Multiplier",
@@ -217,7 +182,7 @@ Tab:CreateSlider({
 
 -- Enable/Disable Hitbox Resizing Toggle
 Tab:CreateToggle({
-    Name = "Enable Hitbox Resizing",
+    Name = "Enable Modified Hitbox",
     CurrentValue = resizingEnabled,
     Callback = function(State)
         resizingEnabled = State
@@ -245,7 +210,7 @@ Tab:CreateSlider({
 
 -- Toggle Walkspeed On/Off
 Tab:CreateToggle({
-    Name = "Enable Walkspeed",
+    Name = "Enable Modified Walkspeed",
     CurrentValue = walkspeedEnabled,
     Callback = function(State)
         walkspeedEnabled = State
@@ -273,7 +238,7 @@ Tab:CreateSlider({
 
 -- Toggle JumpPower On/Off
 Tab:CreateToggle({
-    Name = "Enable JumpPower",
+    Name = "Enable Modified JumpPower",
     CurrentValue = jumpPowerEnabled,
     Callback = function(State)
         jumpPowerEnabled = State
@@ -313,29 +278,19 @@ Tab:CreateToggle({
     end,
 })
 
--- Fly Toggle
+-- Anti AFK Toggle
 Tab:CreateToggle({
-    Name = "Enable Fly",
-    CurrentValue = flying,
+    Name = "Anti AFK",
+    CurrentValue = antiAFKEnabled,
     Callback = function(State)
-        toggleFly(State)
+        antiAFKEnabled = State
+        if antiAFKEnabled then
+            local Player = game:GetService("Players").LocalPlayer
+            game:GetService("RunService").Heartbeat:Connect(function()
+                game:GetService("Players").LocalPlayer.Idled:Connect(function()
+                    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+                end)
+            end)
+        end
     end,
 })
-
--- Fly Speed Slider
-Tab:CreateSlider({
-    Name = "Fly Speed",
-    Range = {10, 200},
-    Increment = 10,
-    CurrentValue = flySpeed,
-    Callback = function(Value)
-        flySpeed = Value
-    end,
-})
-
--- ESP Toggle
-Tab:CreateToggle({
-    Name = "Enable ESP",
-    CurrentValue = espEnabled,
-    Callback = function(State)
-        toggle
